@@ -1,6 +1,6 @@
-# 🥸 Denv, the secret files' helper tool
-I use Ubuntu to work, and my Mac to create personal projects, but sometimes I have to share lots of env files, tokens, and config files... across my machines, which is super boring! (I used to use google drive, and it really sucks!)
-So I have created Denv, a CLI that allows me to easily upload and download those config files.
+# 🥸 Denv, the secret and config files' helper tool
+I use Ubuntu to work, and my Mac to create personal projects, but sometimes I have to share lots of env files, tokens, and config files... across my machines, which is super boring! (I used to use google drive, and it sucks)
+So I have created `denv`, a CLI that allows me to easily upload and download those config files.
 
 ## 🤩 How to install denv Mac and Linux
 ```bash
