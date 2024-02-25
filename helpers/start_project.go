@@ -1,9 +1,11 @@
 package helpers
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path"
+	"runtime"
 
 	"github.com/joho/godotenv"
 )
@@ -17,43 +19,53 @@ var (
 	ENV_PATH     string
 )
 
-func StartProject() {
-	config, err := os.UserHomeDir()
+func setPaths(home string) {
+	isWindows := runtime.GOOS == "windows"
 
-	if err != nil {
-		log.Fatalf("Failed to get user config dir: %v", err)
+	if isWindows {
+		PROJECT_PATH = path.Join(home, "denv")
+	} else {
+		PROJECT_PATH = path.Join(home, ".config", "denv")
 	}
 
-	PROJECT_PATH = path.Join(config, ".config", "denv")
-
 	ENV_PATH = path.Join(PROJECT_PATH, ".env")
+}
 
-	if _, err := os.Stat(PROJECT_PATH); os.IsNotExist(err) {
+func StartProject() {
+	home, err := os.UserHomeDir()
+
+	if err != nil {
+		log.Fatalf("Failed to get user config dir: %s", err.Error())
+	}
+
+	setPaths(home)
+
+	if _, err := os.Stat(PROJECT_PATH); err != nil {
 		err = os.Mkdir(PROJECT_PATH, READ_WRITE_AND_EXECUTE_PERMISSION)
 
 		if err != nil {
-			log.Fatalf("Failed to read denv dir: %v", err)
+			log.Fatalf("Failed to read denv dir: %s", err.Error())
 		}
 
 		_, err = os.Create(ENV_PATH)
 
 		if err != nil {
-			log.Fatalf("Error to write env file: %v", err)
+			log.Fatalf("Error to write env file: %s", err.Error())
 		}
 	}
 
 	err = godotenv.Load(ENV_PATH)
 
 	if err != nil {
-		log.Fatalf("Failed to read envs: %v", err)
+		log.Fatalf("Failed to read envs: %s", err.Error())
 	}
 }
 
-func CheckEnvs() bool {
+func CheckEnvs() error {
 	err := godotenv.Load(ENV_PATH)
 
 	if err != nil {
-		log.Fatalf("Failed to read envs: %v", err)
+		log.Fatalf("Failed to read envs: %s", err.Error())
 	}
 
 	accessKey := os.Getenv("AWS_ACCESS_KEY")
@@ -61,8 +73,8 @@ func CheckEnvs() bool {
 	bucketName := os.Getenv("AWS_BUCKET_NAME")
 
 	if accessKey == "" || secretKey == "" || bucketName == "" {
-		return false
+		return errors.New("envs are not set")
 	}
 
-	return true
+	return nil
 }

@@ -39,12 +39,12 @@ func NewS3Bucket() *S3Bucket {
 }
 
 func (s3b *S3Bucket) UploadFile(filePath, name string) {
-	fmt.Println("🚚 Upload in process...")
+	fmt.Println("🚚 Upload in progress...")
 
 	file, err := os.Open(filePath)
 
 	if err != nil {
-		log.Fatalf("Failed to read file: %v", err)
+		log.Fatalf("Failed to read file: %s", err.Error())
 	}
 
 	defer file.Close()
@@ -64,14 +64,14 @@ func (s3b *S3Bucket) UploadFile(filePath, name string) {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to upload file to s3: %v", err)
+		log.Fatalf("Failed to upload file to s3: %s", err.Error())
 	}
 
 	fmt.Println("🥳 Filed uploaded!!!")
 }
 
-func (s3b *S3Bucket) DownloadFile(name string) {
-	fmt.Println("🚚 Download in process...")
+func (s3b *S3Bucket) DownloadFile(name, outputName string) {
+	fmt.Println("🚚 Download in progress...")
 
 	res, err := s3b.bucket.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(s3b.bucketName),
@@ -79,15 +79,23 @@ func (s3b *S3Bucket) DownloadFile(name string) {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to download the file: %v", err)
+		log.Fatalf("Failed to download the file: %s", err.Error())
 	}
 
 	defer res.Body.Close()
 
-	file, err := os.Create(fmt.Sprintf("%s.txt", name))
+	var fileName string
+
+	if outputName != "" {
+		fileName = outputName
+	} else {
+		fileName = fmt.Sprintf("%s.txt", name)
+	}
+
+	file, err := os.Create(fileName)
 
 	if err != nil {
-		log.Fatalf("Failed to create env file: %v", err)
+		log.Fatalf("Failed to create env file: %s", err.Error())
 	}
 
 	defer file.Close()
@@ -95,7 +103,7 @@ func (s3b *S3Bucket) DownloadFile(name string) {
 	_, err = io.Copy(file, res.Body)
 
 	if err != nil {
-		log.Fatalf("Failed to download file: %v", err)
+		log.Fatalf("Failed to download file: %s", err.Error())
 	}
 
 	fmt.Println("🥳 Download succeed!!!")

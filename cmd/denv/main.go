@@ -21,6 +21,7 @@ func main() {
 	conf := flag.Bool("conf", false, "Start the app config")
 	up := flag.String("up", "", "Upload some file")
 	name := flag.String("name", "", "Nickname to the file you will upload")
+	out := flag.String("out", "", "Optional flag to specify the output such as: .env.example")
 
 	flag.Parse()
 
@@ -74,9 +75,9 @@ func main() {
 	}
 
 	if *up != "" && *name != "" {
-		isEnvSet := helpers.CheckEnvs()
+		err := helpers.CheckEnvs()
 
-		if !isEnvSet {
+		if err != nil {
 			fmt.Println("🤔 Hello! Type 'denv --setup' to start setting up the application")
 			return
 		}
@@ -97,13 +98,16 @@ func main() {
 	}
 
 	if *name != "" {
-		isEnvSet := helpers.CheckEnvs()
+		err := helpers.CheckEnvs()
 
-		if !isEnvSet {
+		if err != nil {
 			fmt.Println("🤔 Hello! Type 'denv --setup' to start setting up the application")
 			return
 		}
 
-		s3bucket.DownloadFile(*name)
+		s3bucket.DownloadFile(*name, *out)
+		return
 	}
+
+	fmt.Println("🤓 Type denv --help if you want to see how to use the CLI.")
 }
