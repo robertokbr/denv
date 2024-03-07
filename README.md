@@ -42,6 +42,8 @@ So I have created `denv`, a CLI that allows me to easily upload and download tho
     # or
 
     denv --name [nickname] --out [filename]
+
+    # ex: denv --name mygitconfig --out .config
 ```
 
 That is it! 👋🏻
