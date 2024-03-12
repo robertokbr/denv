@@ -108,3 +108,37 @@ func (s3b *S3Bucket) DownloadFile(name, outputName string) {
 
 	fmt.Println("🥳 Download succeed!!!")
 }
+
+func (s3b *S3Bucket) ListFiles() {
+	fmt.Println("🚚 List in progress...")
+
+	res, err := s3b.bucket.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String(s3b.bucketName),
+	})
+
+	if err != nil {
+		log.Fatalf("Failed to list files: %s", err.Error())
+	}
+
+	fmt.Println("🥳 Files in the bucket:")
+
+	for _, item := range res.Contents {
+		key := *item.Key
+		fmt.Println(key[:len(key)-4])
+	}
+}
+
+func (s3b *S3Bucket) DeleteFile(name string) {
+	fmt.Println("🚚 Delete in progress...")
+
+	_, err := s3b.bucket.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(s3b.bucketName),
+		Key:    aws.String(fmt.Sprintf("%s.txt", name)),
+	})
+
+	if err != nil {
+		log.Fatalf("Failed to delete file: %s", err.Error())
+	}
+
+	fmt.Println("🥳 File deleted!!!")
+}

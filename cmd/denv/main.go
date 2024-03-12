@@ -22,6 +22,8 @@ func main() {
 	up := flag.String("up", "", "Upload some file")
 	name := flag.String("name", "", "Nickname to the file you will upload")
 	out := flag.String("out", "", "Optional flag to specify the output such as: .env.example")
+	list := flag.Bool("list", false, "List all files in the bucket")
+	del := flag.String("del", "", "Delete some file in the bucket")
 
 	flag.Parse()
 
@@ -29,6 +31,9 @@ func main() {
 		fmt.Println("denv --conf to start the CLI configuration")
 		fmt.Println("denv --up [file path] --name [file nickname] to upload some env file")
 		fmt.Println("denv --name [file nickname] to download some env file you have uploaded")
+		fmt.Println("denv --name [file nickname] --out [file name] to download some env file you have uploaded with some specific name")
+		fmt.Println("denv --list to list all files in the bucket")
+		fmt.Println("denv --del [file nickname] to delete some file in the bucket")
 	}
 
 	if *conf {
@@ -106,6 +111,30 @@ func main() {
 		}
 
 		s3bucket.DownloadFile(*name, *out)
+		return
+	}
+
+	if *list {
+		err := helpers.CheckEnvs()
+
+		if err != nil {
+			fmt.Println("🤔 Hello! Type 'denv --setup' to start setting up the application")
+			return
+		}
+
+		s3bucket.ListFiles()
+		return
+	}
+
+	if *del != "" {
+		err := helpers.CheckEnvs()
+
+		if err != nil {
+			fmt.Println("🤔 Hello! Type 'denv --setup' to start setting up the application")
+			return
+		}
+
+		s3bucket.DeleteFile(*del)
 		return
 	}
 
