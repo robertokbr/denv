@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -22,9 +23,10 @@ func NewS3Bucket() *S3Bucket {
 	accessKey := os.Getenv("AWS_ACCESS_KEY")
 	secretKey := os.Getenv("AWS_SECRET_KEY")
 	bucketName := os.Getenv("AWS_BUCKET_NAME")
+	bucketRegion := os.Getenv("AWS_BUCKET_REGION")
 
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"),
+		Region:      aws.String(bucketRegion),
 		Credentials: credentials.NewStaticCredentials(accessKey, secretKey, ""),
 	}))
 
@@ -42,21 +44,25 @@ func (s3b *S3Bucket) UploadFile(filePath, name string) {
 	fmt.Println("🚚 Upload in progress...")
 
 	file, err := os.Open(filePath)
-
 	if err != nil {
 		log.Fatalf("Failed to read file: %s", err.Error())
 	}
-
 	defer file.Close()
 
 	fileStat, _ := file.Stat()
+	if fileStat.IsDir() {
+		fmt.Println("🚧 You can't upload a directory")
+		return
+	}
+
 	size := fileStat.Size()
+	ext := path.Ext(filePath)
 	buffer := make([]byte, size)
 	file.Read(buffer)
 
 	_, err = s3b.bucket.PutObject(&s3.PutObjectInput{
 		Bucket:             aws.String(s3b.bucketName),
-		Key:                aws.String(fmt.Sprintf("%s.txt", name)),
+		Key:                aws.String(fmt.Sprintf("%s.%s", name, ext[1:])),
 		Body:               strings.NewReader(string(buffer)),
 		ACL:                aws.String("private"),
 		ContentDisposition: aws.String("attachment"),
@@ -75,33 +81,26 @@ func (s3b *S3Bucket) DownloadFile(name, outputName string) {
 
 	res, err := s3b.bucket.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(s3b.bucketName),
-		Key:    aws.String(fmt.Sprintf("%s.txt", name)),
+		Key:    aws.String(name),
 	})
 
 	if err != nil {
 		log.Fatalf("Failed to download the file: %s", err.Error())
 	}
-
 	defer res.Body.Close()
 
-	var fileName string
-
+	fileName := name
 	if outputName != "" {
 		fileName = outputName
-	} else {
-		fileName = fmt.Sprintf("%s.txt", name)
 	}
 
 	file, err := os.Create(fileName)
-
 	if err != nil {
 		log.Fatalf("Failed to create env file: %s", err.Error())
 	}
-
 	defer file.Close()
 
 	_, err = io.Copy(file, res.Body)
-
 	if err != nil {
 		log.Fatalf("Failed to download file: %s", err.Error())
 	}
@@ -121,10 +120,9 @@ func (s3b *S3Bucket) ListFiles() {
 	}
 
 	fmt.Println("🥳 Files in the bucket:")
-
 	for _, item := range res.Contents {
 		key := *item.Key
-		fmt.Println(key[:len(key)-4])
+		fmt.Println(key)
 	}
 }
 
@@ -133,7 +131,7 @@ func (s3b *S3Bucket) DeleteFile(name string) {
 
 	_, err := s3b.bucket.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(s3b.bucketName),
-		Key:    aws.String(fmt.Sprintf("%s.txt", name)),
+		Key:    aws.String(name),
 	})
 
 	if err != nil {
