@@ -8,7 +8,7 @@ import (
 	"path"
 
 	"github.com/robertokbr/denv/bucket"
-	"github.com/robertokbr/denv/helpers"
+	"github.com/robertokbr/denv/config"
 )
 
 type CLI struct {
@@ -40,12 +40,43 @@ func New() *CLI {
 	
 	flag.Parse()
 	
-	helpers.StartProject()
-	cli.s3bucket = bucket.NewS3Bucket()
+	// Initialize configuration
+	err := initializeApp()
+	if err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
+	}
 	
+	// Create S3 bucket instance
+	cli.initializeS3Bucket()
+	
+	// Register commands
 	cli.registerCommands()
 	
 	return cli
+}
+
+func initializeApp() error {
+	// Initialize paths
+	if err := config.InitPaths(); err != nil {
+		return fmt.Errorf("failed to initialize paths: %v", err)
+	}
+	
+	// Setup environment
+	if err := config.SetupEnvironment(); err != nil {
+		return fmt.Errorf("failed to setup environment: %v", err)
+	}
+	
+	return nil
+}
+
+func (cli *CLI) initializeS3Bucket() {
+	creds := config.GetAWSCredentials()
+	cli.s3bucket = bucket.NewS3Bucket(
+		creds.AccessKey,
+		creds.SecretKey,
+		creds.BucketName,
+		creds.BucketRegion,
+	)
 }
 
 func (cli *CLI) registerCommands() {
@@ -65,9 +96,9 @@ func (cli *CLI) registerCommands() {
 }
 
 func (cli *CLI) validateEnvironment() bool {
-	err := helpers.CheckEnvs()
+	err := config.ValidateEnvironment()
 	if err != nil {
-		helpers.HandleEnvError()
+		PrintSetupMessage()
 		return false
 	}
 	return true
@@ -122,11 +153,11 @@ func (cli *CLI) handleRename() {
 }
 
 func (cli *CLI) handleConfig() {
-	helpers.SetupConfig()
+	ConfigureApplication()
 }
 
 func (cli *CLI) handleHelp() {
-	helpers.PrintHelp()
+	PrintHelp()
 }
 
 func (cli *CLI) executeCommand(name string) bool {

@@ -20,12 +20,7 @@ type S3Bucket struct {
 	bucketName string
 }
 
-func NewS3Bucket() *S3Bucket {
-	accessKey := os.Getenv("AWS_ACCESS_KEY")
-	secretKey := os.Getenv("AWS_SECRET_KEY")
-	bucketName := os.Getenv("AWS_BUCKET_NAME")
-	bucketRegion := os.Getenv("AWS_BUCKET_REGION")
-
+func NewS3Bucket(accessKey, secretKey, bucketName, bucketRegion string) *S3Bucket {
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region:      aws.String(bucketRegion),
 		Credentials: credentials.NewStaticCredentials(accessKey, secretKey, ""),
