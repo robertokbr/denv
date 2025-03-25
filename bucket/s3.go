@@ -1,6 +1,7 @@
 package bucket
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -120,9 +121,18 @@ func (s3b *S3Bucket) ListFiles() {
 	}
 
 	fmt.Println("🥳 Files in the bucket:")
+
+	if len(res.Contents) == 0 {
+		fmt.Println("No files found in the bucket.")
+		return
+	}
+
+	fmt.Printf("%-40s | %-20s\n", "File Name", "Last Modified")
+
 	for _, item := range res.Contents {
 		key := *item.Key
-		fmt.Println(key)
+		lastModified := item.LastModified.Format("2006-01-02 15:04:05")
+		fmt.Printf("%-40s | %-20s\n", key, lastModified)
 	}
 }
 
@@ -139,4 +149,63 @@ func (s3b *S3Bucket) DeleteFile(name string) {
 	}
 
 	fmt.Println("🥳 File deleted!!!")
+}
+
+func (s3b *S3Bucket) RenameFile(oldName, newName string) {
+	fmt.Println("🚚 Rename in progress...")
+	
+	// First, copy the file with the new name
+	res, err := s3b.bucket.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(s3b.bucketName),
+		Key:    aws.String(oldName),
+	})
+	
+	if err != nil {
+		log.Fatalf("Failed to find file %s: %s", oldName, err.Error())
+	}
+	defer res.Body.Close()
+	
+	// Extract file extension from the old name
+	ext := path.Ext(oldName)
+	var newKey string
+	
+	// If old name has an extension, use it for the new name
+	if ext != "" {
+		baseName := strings.TrimSuffix(newName, ext)
+		newKey = baseName + ext
+	} else {
+		newKey = newName
+	}
+	
+	// Read the entire body
+	bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Fatalf("Failed to read file contents: %s", err.Error())
+	}
+	
+	// Copy object to the new key
+	_, err = s3b.bucket.PutObject(&s3.PutObjectInput{
+		Bucket:             aws.String(s3b.bucketName),
+		Key:                aws.String(newKey),
+		Body:               bytes.NewReader(bodyBytes),
+		ACL:                aws.String("private"),
+		ContentDisposition: aws.String("attachment"),
+		ContentType:        aws.String("application/octet-stream"),
+	})
+	
+	if err != nil {
+		log.Fatalf("Failed to rename file to %s: %s", newKey, err.Error())
+	}
+	
+	// Delete the old object
+	_, err = s3b.bucket.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(s3b.bucketName),
+		Key:    aws.String(oldName),
+	})
+	
+	if err != nil {
+		log.Fatalf("Failed to delete original file after rename: %s", err.Error())
+	}
+	
+	fmt.Printf("🥳 File renamed from %s to %s!!!\n", oldName, newKey)
 }

@@ -64,6 +64,20 @@ func newDeleteCommand(cli *CLI) Command {
 	}
 }
 
+func newRenameCommand(cli *CLI) Command {
+	return Command{
+		Name:        "rename",
+		Description: "Rename a file in S3 bucket",
+		Execute: func() error {
+			if cli.flagName == "" {
+				return printCommandError("🌝 Please, provide a new name for the file using --name flag")
+			}
+			cli.handleRename()
+			return nil
+		},
+	}
+}
+
 func newConfigCommand(cli *CLI) Command {
 	return Command{
 		Name:        "config",

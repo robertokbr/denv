@@ -56,6 +56,7 @@ func PrintHelp() {
 	fmt.Println("denv --name [file nickname] --out [file name] to download some env file you have uploaded with some specific name")
 	fmt.Println("denv --list to list all files in the bucket")
 	fmt.Println("denv --del [file nickname] to delete some file in the bucket")
+	fmt.Println("denv --rename [file nickname] --name [new nickname] to rename a file in the bucket")
 }
 
 func HandleEnvError() {

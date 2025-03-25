@@ -20,6 +20,7 @@ type CLI struct {
 	flagDelete   string
 	flagHelp     bool
 	flagConfig   bool
+	flagRename   string
 	commands     map[string]Command
 }
 
@@ -35,6 +36,7 @@ func New() *CLI {
 	flag.StringVar(&cli.flagOutput, "out", "", "Optional flag to specify the output such as: .env.example")
 	flag.BoolVar(&cli.flagList, "list", false, "List all files in the bucket")
 	flag.StringVar(&cli.flagDelete, "del", "", "Delete some file in the bucket")
+	flag.StringVar(&cli.flagRename, "rename", "", "Rename a file in the bucket")
 	
 	flag.Parse()
 	
@@ -54,6 +56,7 @@ func (cli *CLI) registerCommands() {
 		newDownloadCommand(cli),
 		newListCommand(cli),
 		newDeleteCommand(cli),
+		newRenameCommand(cli),
 	}
 	
 	for _, cmd := range commands {
@@ -108,6 +111,16 @@ func (cli *CLI) handleDelete() {
 	})
 }
 
+func (cli *CLI) handleRename() {
+	cli.executeWithValidation(func() {
+		if cli.flagName == "" {
+			fmt.Println("🌝 Please, provide a new name for the file using --name flag")
+			return
+		}
+		cli.s3bucket.RenameFile(cli.flagRename, cli.flagName)
+	})
+}
+
 func (cli *CLI) handleConfig() {
 	helpers.SetupConfig()
 }
@@ -137,7 +150,11 @@ func (cli *CLI) Run() {
 		return
 	}
 
-	if cli.flagName != "" && cli.flagUpload == "" && cli.executeCommand("download") {
+	if cli.flagRename != "" && cli.flagName != "" && cli.executeCommand("rename") {
+		return
+	}
+
+	if cli.flagName != "" && cli.flagUpload == "" && cli.flagRename == "" && cli.executeCommand("download") {
 		return
 	}
 
@@ -151,6 +168,11 @@ func (cli *CLI) Run() {
 
 	if cli.flagUpload != "" && cli.flagName == "" {
 		fmt.Println("🌝 Please, provide a nickname to your file using --name flag")
+		return
+	}
+
+	if cli.flagRename != "" && cli.flagName == "" {
+		fmt.Println("🌝 Please, provide a new name for the file using --name flag")
 		return
 	}
 
