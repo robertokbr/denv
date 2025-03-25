@@ -12,6 +12,7 @@ func PrintHelp() {
 	fmt.Println("denv --list to list all files in the bucket")
 	fmt.Println("denv --del [file nickname] to delete some file in the bucket")
 	fmt.Println("denv --rename [file nickname] --name [new nickname] to rename a file in the bucket")
+	fmt.Println("denv --setup-completion to install tab completion for commands (bash)")
 }
 
 func PrintSetupMessage() {

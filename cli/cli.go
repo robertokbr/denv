@@ -12,16 +12,18 @@ import (
 )
 
 type CLI struct {
-	s3bucket     *bucket.S3Bucket
-	flagUpload   string
-	flagName     string
-	flagOutput   string
-	flagList     bool
-	flagDelete   string
-	flagHelp     bool
-	flagConfig   bool
-	flagRename   string
-	commands     map[string]Command
+	s3bucket          *bucket.S3Bucket
+	flagUpload        string
+	flagName          string
+	flagOutput        string
+	flagList          bool
+	flagDelete        string
+	flagHelp          bool
+	flagConfig        bool
+	flagRename        string
+	flagCompletionFiles bool
+	flagSetupCompletion bool
+	commands          map[string]Command
 }
 
 func New() *CLI {
@@ -37,20 +39,25 @@ func New() *CLI {
 	flag.BoolVar(&cli.flagList, "list", false, "List all files in the bucket")
 	flag.StringVar(&cli.flagDelete, "del", "", "Delete some file in the bucket")
 	flag.StringVar(&cli.flagRename, "rename", "", "Rename a file in the bucket")
+	flag.BoolVar(&cli.flagCompletionFiles, "completion-files", false, "List files for shell completion (internal use)")
+	flag.BoolVar(&cli.flagSetupCompletion, "setup-completion", false, "Setup shell completion for denv commands")
 	
 	flag.Parse()
 	
-	// Initialize configuration
-	err := initializeApp()
-	if err != nil {
-		log.Fatalf("Failed to initialize application: %v", err)
-	}
-	
-	// Create S3 bucket instance
-	cli.initializeS3Bucket()
-	
-	// Register commands
+	// Register commands first so we can handle special commands
 	cli.registerCommands()
+	
+	// Skip initialization for completion-related commands
+	if !cli.flagCompletionFiles && !cli.flagSetupCompletion {
+		// Initialize configuration
+		err := initializeApp()
+		if err != nil {
+			log.Fatalf("Failed to initialize application: %v", err)
+		}
+		
+		// Create S3 bucket instance
+		cli.initializeS3Bucket()
+	}
 	
 	return cli
 }
@@ -88,6 +95,8 @@ func (cli *CLI) registerCommands() {
 		newListCommand(cli),
 		newDeleteCommand(cli),
 		newRenameCommand(cli),
+		newCompletionFilesCommand(cli),
+		newSetupCompletionCommand(cli),
 	}
 	
 	for _, cmd := range commands {
@@ -160,6 +169,21 @@ func (cli *CLI) handleHelp() {
 	PrintHelp()
 }
 
+func (cli *CLI) handleCompletionFiles() {
+	PrintFileList()
+}
+
+func (cli *CLI) handleSetupCompletion() {
+	err := WriteCompletionScript()
+	if err != nil {
+		fmt.Printf("Failed to setup completion: %v\n", err)
+		return
+	}
+	
+	fmt.Println("🎉 Bash completion has been set up successfully!")
+	fmt.Println("ℹ️  You need to restart your shell or run 'source ~/.bash_completion' to enable it.")
+}
+
 func (cli *CLI) executeCommand(name string) bool {
 	if cmd, exists := cli.commands[name]; exists {
 		cmd.Execute()
@@ -169,6 +193,15 @@ func (cli *CLI) executeCommand(name string) bool {
 }
 
 func (cli *CLI) Run() {
+	// Handle completion commands first as they don't require full initialization
+	if cli.flagCompletionFiles && cli.executeCommand("completion-files") {
+		return
+	}
+	
+	if cli.flagSetupCompletion && cli.executeCommand("setup-completion") {
+		return
+	}
+
 	if cli.flagHelp && cli.executeCommand("help") {
 		return
 	}

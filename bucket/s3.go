@@ -107,28 +107,49 @@ func (s3b *S3Bucket) DownloadFile(name, outputName string) {
 func (s3b *S3Bucket) ListFiles() {
 	fmt.Println("🚚 List in progress...")
 
-	res, err := s3b.bucket.ListObjects(&s3.ListObjectsInput{
-		Bucket: aws.String(s3b.bucketName),
-	})
-
+	files, err := s3b.getFilesList()
 	if err != nil {
 		log.Fatalf("Failed to list files: %s", err.Error())
 	}
 
 	fmt.Println("🥳 Files in the bucket:")
 
-	if len(res.Contents) == 0 {
+	if len(files.Contents) == 0 {
 		fmt.Println("No files found in the bucket.")
 		return
 	}
 
 	fmt.Printf("%-40s | %-20s\n", "File Name", "Last Modified")
 
-	for _, item := range res.Contents {
+	for _, item := range files.Contents {
 		key := *item.Key
 		lastModified := item.LastModified.Format("2006-01-02 15:04:05")
 		fmt.Printf("%-40s | %-20s\n", key, lastModified)
 	}
+}
+
+// getFilesList returns the raw S3 ListObjectsOutput
+func (s3b *S3Bucket) getFilesList() (*s3.ListObjectsOutput, error) {
+	return s3b.bucket.ListObjects(&s3.ListObjectsInput{
+		Bucket: aws.String(s3b.bucketName),
+	})
+}
+
+// ListFileNames returns just the names of files in the bucket for use with autocomplete
+func (s3b *S3Bucket) ListFileNames() ([]string, error) {
+	res, err := s3b.getFilesList()
+	if err != nil {
+		return nil, err
+	}
+	
+	fileNames := make([]string, 0, len(res.Contents))
+	for _, item := range res.Contents {
+		if item.Key != nil {
+			fileNames = append(fileNames, *item.Key)
+		}
+	}
+	
+	return fileNames, nil
 }
 
 func (s3b *S3Bucket) DeleteFile(name string) {

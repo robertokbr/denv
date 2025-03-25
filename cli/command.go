@@ -89,6 +89,28 @@ func newConfigCommand(cli *CLI) Command {
 	}
 }
 
+func newCompletionFilesCommand(cli *CLI) Command {
+	return Command{
+		Name:        "completion-files",
+		Description: "List files for shell completion",
+		Execute: func() error {
+			cli.handleCompletionFiles()
+			return nil
+		},
+	}
+}
+
+func newSetupCompletionCommand(cli *CLI) Command {
+	return Command{
+		Name:        "setup-completion",
+		Description: "Setup shell completion for denv commands",
+		Execute: func() error {
+			cli.handleSetupCompletion()
+			return nil
+		},
+	}
+}
+
 func newHelpCommand(cli *CLI) Command {
 	return Command{
 		Name:        "help",
