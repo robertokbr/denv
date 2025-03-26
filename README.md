@@ -4,12 +4,12 @@ I use Ubuntu for work and my Mac for personal projects. However, I often find my
 
 To address this problem, I created `denv`, a command-line interface (CLI) tool that simplifies the process of uploading and downloading these config files.
 
-## 🤩 How to install denv - Mac and Linux
+## 🔌 How to install denv - Mac and Linux
 ```bash
 make
 ```
 
-## 🤩 How to install denv - Windows
+## 🪟 How to install denv - Windows
 ```bash
 mkdir C:\bin
 ```
@@ -27,13 +27,13 @@ setx PATH "C:\bin;%PATH%"
 where.exe denv.exe
 ```
 
-## 😜 How to configure
+## ⚙️ How to configure
 ```bash
 # You will need to have your AWS secret key, access key, and a S3 bucket name ready
 denv --config
 ```
 
-## 🤯 Commands
+## 🎹 Commands
 
 ### Upload files
 ```bash
@@ -85,17 +85,22 @@ denv --rename config-dev --name config-development
 Denv supports tab completion for file names when using commands like `--del`, `--rename`, and `--name`. To set up tab completion:
 
 ```bash
-# Set up bash completion for denv commands
+# Set up shell completion for denv commands
 denv --setup-completion
 
-# After installation, restart your shell or run:
+# After installation:
+# For bash, restart your shell or run:
 source ~/.bash_completion
+
+# For zsh, restart your shell or run:
+source ~/.zshrc
 ```
 
 Once set up, you can use Tab to complete file names:
 ```bash
-denv --del [TAB]               # Shows all available files
-denv --rename config-[TAB]     # Shows files starting with "config-"
+denv --del [TAB]               # Shows all available files from your bucket
+denv --rename config-[TAB]     # Shows bucket files starting with "config-"
+denv --up [TAB]                # Shows local files (for upload)
 ```
 
 ### Help
