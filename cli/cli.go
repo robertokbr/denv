@@ -12,25 +12,25 @@ import (
 )
 
 type CLI struct {
-	s3bucket          *bucket.S3Bucket
-	flagUpload        string
-	flagName          string
-	flagOutput        string
-	flagList          bool
-	flagDelete        string
-	flagHelp          bool
-	flagConfig        bool
-	flagRename        string
+	s3bucket            *bucket.S3Bucket
+	flagUpload          string
+	flagName            string
+	flagOutput          string
+	flagList            bool
+	flagDelete          string
+	flagHelp            bool
+	flagConfig          bool
+	flagRename          string
 	flagCompletionFiles bool
 	flagSetupCompletion bool
-	commands          map[string]Command
+	commands            map[string]Command
 }
 
 func New() *CLI {
 	cli := &CLI{
 		commands: make(map[string]Command),
 	}
-	
+
 	flag.BoolVar(&cli.flagHelp, "help", false, "See how to use the CLI")
 	flag.BoolVar(&cli.flagConfig, "config", false, "Start the app config")
 	flag.StringVar(&cli.flagUpload, "up", "", "Upload some file")
@@ -41,12 +41,12 @@ func New() *CLI {
 	flag.StringVar(&cli.flagRename, "rename", "", "Rename a file in the bucket")
 	flag.BoolVar(&cli.flagCompletionFiles, "completion-files", false, "List files for shell completion (internal use)")
 	flag.BoolVar(&cli.flagSetupCompletion, "setup-completion", false, "Setup shell completion for denv commands")
-	
+
 	flag.Parse()
-	
+
 	// Register commands first so we can handle special commands
 	cli.registerCommands()
-	
+
 	// Skip initialization for completion-related commands
 	if !cli.flagCompletionFiles && !cli.flagSetupCompletion {
 		// Initialize configuration
@@ -54,11 +54,11 @@ func New() *CLI {
 		if err != nil {
 			log.Fatalf("Failed to initialize application: %v", err)
 		}
-		
+
 		// Create S3 bucket instance
 		cli.initializeS3Bucket()
 	}
-	
+
 	return cli
 }
 
@@ -67,12 +67,12 @@ func initializeApp() error {
 	if err := config.InitPaths(); err != nil {
 		return fmt.Errorf("failed to initialize paths: %v", err)
 	}
-	
+
 	// Setup environment
 	if err := config.SetupEnvironment(); err != nil {
 		return fmt.Errorf("failed to setup environment: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -98,7 +98,7 @@ func (cli *CLI) registerCommands() {
 		newCompletionFilesCommand(cli),
 		newSetupCompletionCommand(cli),
 	}
-	
+
 	for _, cmd := range commands {
 		cli.commands[cmd.Name] = cmd
 	}
@@ -179,9 +179,6 @@ func (cli *CLI) handleSetupCompletion() {
 		fmt.Printf("Failed to setup completion: %v\n", err)
 		return
 	}
-	
-	fmt.Println("🎉 Bash completion has been set up successfully!")
-	fmt.Println("ℹ️  You need to restart your shell or run 'source ~/.bash_completion' to enable it.")
 }
 
 func (cli *CLI) executeCommand(name string) bool {
@@ -197,7 +194,7 @@ func (cli *CLI) Run() {
 	if cli.flagCompletionFiles && cli.executeCommand("completion-files") {
 		return
 	}
-	
+
 	if cli.flagSetupCompletion && cli.executeCommand("setup-completion") {
 		return
 	}

@@ -15,59 +15,41 @@ import (
 )
 
 const (
-	completionScript = `
-		_denv_completion() {
-			local cur prev opts
-			COMPREPLY=()
-			cur="${COMP_WORDS[COMP_CWORD]}"
-			prev="${COMP_WORDS[COMP_CWORD-1]}"
-			
-			# List of options
-			opts="--help --config --up --name --out --list --del --rename"
-			
-			# Check if we need file completion
-			case "${prev}" in
-				--del|--rename)
-					# Get the list of files from bucket
-					files=$(denv --completion-files)
-					COMPREPLY=( $(compgen -W "${files}" -- ${cur}) )
-					return 0
-					;;
-				--name)
-					# Check if previous command was --rename to complete file names
-					if [[ "${COMP_WORDS[COMP_CWORD-2]}" == "--rename" ]]; then
-						files=$(denv --completion-files)
-						COMPREPLY=( $(compgen -W "${files}" -- ${cur}) )
-						return 0
-					fi
-					return 0
-					;;
-				--up)
-					# Complete with local files
-					COMPREPLY=( $(compgen -f ${cur}) )
-					return 0
-					;;
-				*)
-					;;
-			esac
-			
-			# Complete options
-			if [[ ${cur} == -* ]] ; then
-				COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
-				return 0
-			fi
-		}
+	// ZSH completion script
+	completionScript = `#compdef denv
 
-		complete -F _denv_completion denv
-	`
+_denv_files() {
+  local files
+  IFS=' ' read -A files <<< "$(denv --completion-files)"
+  _describe -t files "files" files
+}
+
+_denv() {
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  
+  _arguments \
+    '--help[See how to use the CLI]' \
+    '--config[Start the app config]' \
+    '--up[Upload some file]:file:_files' \
+    '--name[Nickname for the file]:file:_denv_files' \
+    '--out[Optional output name]:filename:' \
+    '--list[List all files in the bucket]' \
+    '--del[Delete some file in the bucket]:file:_denv_files' \
+    '--rename[Rename a file in the bucket]:file:_denv_files' \
+    '--setup-completion[Setup shell completion for denv commands]'
+}
+
+compdef _denv denv
+`
 )
 
-// GenerateCompletionScript generates the bash completion script content
+// GenerateCompletionScript generates the zsh completion script content
 func GenerateCompletionScript() string {
 	return completionScript
 }
 
-// WriteCompletionScript writes the completion script to the user's bash completion directory
+// WriteCompletionScript writes the completion script to the user's zsh completion directory
 func WriteCompletionScript() error {
 	// Create completion directory if it doesn't exist
 	homeDir, err := os.UserHomeDir()
@@ -76,21 +58,18 @@ func WriteCompletionScript() error {
 	}
 
 	var completionPath string
-	// Check if we're using bash_completion.d or completions directory
-	// macOS usually uses /usr/local/etc/bash_completion.d/
-	// Linux often uses /etc/bash_completion.d/ or ~/.local/share/bash-completion/completions/
-
-	// First try user's home directory
-	bashCompletionDir := path.Join(homeDir, ".bash_completion.d")
-	if _, err := os.Stat(bashCompletionDir); err == nil {
-		completionPath = path.Join(bashCompletionDir, "denv")
+	// For ZSH, the completion functions should go in a directory in the fpath
+	// Common locations include ~/.zsh/functions or ~/.zsh/completion
+	zshFunctionsDir := path.Join(homeDir, ".zsh", "functions")
+	if _, err := os.Stat(zshFunctionsDir); err == nil {
+		completionPath = path.Join(zshFunctionsDir, "_denv")
 	} else {
 		// Create directory if it doesn't exist
-		err = os.MkdirAll(bashCompletionDir, 0755)
+		err = os.MkdirAll(zshFunctionsDir, 0755)
 		if err != nil {
-			return fmt.Errorf("could not create bash completion directory: %v", err)
+			return fmt.Errorf("could not create zsh functions directory: %v", err)
 		}
-		completionPath = path.Join(bashCompletionDir, "denv")
+		completionPath = path.Join(zshFunctionsDir, "_denv")
 	}
 
 	// Write completion script
@@ -99,15 +78,34 @@ func WriteCompletionScript() error {
 		return fmt.Errorf("could not write completion script: %v", err)
 	}
 
-	// Create .bash_completion file in home directory if it doesn't exist
-	bashCompletionFile := path.Join(homeDir, ".bash_completion")
-	if _, err := os.Stat(bashCompletionFile); os.IsNotExist(err) {
-		content := "for bcfile in ~/.bash_completion.d/* ; do\n  [ -f \"$bcfile\" ] && . $bcfile\ndone\n"
-		err = os.WriteFile(bashCompletionFile, []byte(content), 0644)
+	// Check if zshrc exists
+	zshrcPath := path.Join(homeDir, ".zshrc")
+	if _, err := os.Stat(zshrcPath); err == nil {
+		// Check if fpath is already set in zshrc
+		zshrcContent, err := os.ReadFile(zshrcPath)
 		if err != nil {
-			return fmt.Errorf("could not write .bash_completion file: %v", err)
+			return fmt.Errorf("could not read .zshrc file: %v", err)
+		}
+
+		// Only add fpath entry if it isn't already there
+		if !strings.Contains(string(zshrcContent), zshFunctionsDir) {
+			// Append fpath entry to .zshrc
+			f, err := os.OpenFile(zshrcPath, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				return fmt.Errorf("could not open .zshrc for appending: %v", err)
+			}
+			defer f.Close()
+
+			// Add the functions directory to fpath and enable compinit
+			fpathUpdate := fmt.Sprintf("\n# Added by denv for completion\nfpath=(%s $fpath)\nautoload -Uz compinit\ncompinit\n", zshFunctionsDir)
+			if _, err := f.WriteString(fpathUpdate); err != nil {
+				return fmt.Errorf("could not update .zshrc: %v", err)
+			}
 		}
 	}
+
+	fmt.Println("🎉 ZSH completion has been set up successfully!")
+	fmt.Println("ℹ️  You need to restart your shell or run 'source ~/.zshrc' to enable it.")
 
 	return nil
 }
