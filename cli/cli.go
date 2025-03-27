@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/robertokbr/denv/bucket"
 	"github.com/robertokbr/denv/config"
@@ -23,6 +24,7 @@ type CLI struct {
 	flagRename          string
 	flagCompletionFiles bool
 	flagSetupCompletion bool
+	flagRecursive       bool
 	commands            map[string]Command
 }
 
@@ -41,6 +43,7 @@ func New() *CLI {
 	flag.StringVar(&cli.flagRename, "rename", "", "Rename a file in the bucket")
 	flag.BoolVar(&cli.flagCompletionFiles, "completion-files", false, "List files for shell completion (internal use)")
 	flag.BoolVar(&cli.flagSetupCompletion, "setup-completion", false, "Setup shell completion for denv commands")
+	flag.BoolVar(&cli.flagRecursive, "r", false, "Upload a directory recursively (will be zipped)")
 
 	flag.Parse()
 
@@ -128,14 +131,66 @@ func (cli *CLI) handleUpload() {
 		}
 
 		fullPath := path.Join(currentPath, cli.flagUpload)
-		fmt.Println(fullPath)
-		cli.s3bucket.UploadFile(fullPath, cli.flagName)
+
+		if cli.flagRecursive {
+			// Create a temporary zip file with a unique name that doesn't conflict
+			tempDir, err := os.MkdirTemp("", "denv")
+			if err != nil {
+				log.Fatalf("Failed to create temporary directory: %v", err)
+			}
+			defer os.RemoveAll(tempDir) // Clean up temp directory
+
+			tempZipPath := path.Join(tempDir, "temp_archive")
+			err = createZipArchive(fullPath, tempZipPath)
+			if err != nil {
+				log.Fatalf("Failed to create zip archive: %v", err)
+			}
+
+			// Check if the name already ends with .zip
+			bucketName := cli.flagName
+			if !strings.HasSuffix(bucketName, ".zip") {
+				bucketName += ".zip"
+			}
+
+			// Upload the zip file
+			cli.s3bucket.UploadFile(tempZipPath, bucketName)
+		} else {
+			// For regular files, preserve the original file extension if the user hasn't specified one
+			originalExt := path.Ext(fullPath)
+			targetName := cli.flagName
+
+			// If the original file has an extension and the target name doesn't have any extension
+			if originalExt != "" && path.Ext(targetName) == "" {
+				targetName += originalExt
+			}
+
+			cli.s3bucket.UploadFile(fullPath, targetName)
+		}
 	})
 }
 
 func (cli *CLI) handleDownload() {
 	cli.executeWithValidation(func() {
-		cli.s3bucket.DownloadFile(cli.flagName, cli.flagOutput)
+		outputPath := cli.flagOutput
+		if outputPath == "" {
+			outputPath = cli.flagName
+		}
+
+		// Download the file
+		cli.s3bucket.DownloadFile(cli.flagName, outputPath)
+
+		// Check if the file is a zip (ends with .zip)
+		if strings.HasSuffix(outputPath, ".zip") {
+			// Extract the zip file
+			extractDir := strings.TrimSuffix(outputPath, ".zip")
+			err := extractZipArchive(outputPath, extractDir)
+			if err != nil {
+				log.Printf("Warning: Failed to extract zip file: %v", err)
+			} else {
+				// Remove the zip file after extraction
+				os.Remove(outputPath)
+			}
+		}
 	})
 }
 

@@ -36,7 +36,7 @@ func NewS3Bucket(accessKey, secretKey, bucketName, bucketRegion string) *S3Bucke
 	return &s3Bucket
 }
 
-func (s3b *S3Bucket) UploadFile(filePath, name string) {
+func (s3b *S3Bucket) UploadFile(filePath, targetName string) {
 	fmt.Println("🚚 Upload in progress...")
 
 	file, err := os.Open(filePath)
@@ -52,14 +52,17 @@ func (s3b *S3Bucket) UploadFile(filePath, name string) {
 	}
 
 	size := fileStat.Size()
-	ext := path.Ext(filePath)
 	buffer := make([]byte, size)
-	file.Read(buffer)
+	_, err = file.Read(buffer)
+	if err != nil {
+		log.Fatalf("Failed to read file content: %s", err.Error())
+	}
 
+	// Use the target name directly without modifying it
 	_, err = s3b.bucket.PutObject(&s3.PutObjectInput{
 		Bucket:             aws.String(s3b.bucketName),
-		Key:                aws.String(fmt.Sprintf("%s.%s", name, ext[1:])),
-		Body:               strings.NewReader(string(buffer)),
+		Key:                aws.String(targetName),
+		Body:               bytes.NewReader(buffer),
 		ACL:                aws.String("private"),
 		ContentDisposition: aws.String("attachment"),
 		ContentType:        aws.String("application/octet-stream"),
@@ -141,14 +144,14 @@ func (s3b *S3Bucket) ListFileNames() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	fileNames := make([]string, 0, len(res.Contents))
 	for _, item := range res.Contents {
 		if item.Key != nil {
 			fileNames = append(fileNames, *item.Key)
 		}
 	}
-	
+
 	return fileNames, nil
 }
 
@@ -169,22 +172,22 @@ func (s3b *S3Bucket) DeleteFile(name string) {
 
 func (s3b *S3Bucket) RenameFile(oldName, newName string) {
 	fmt.Println("🚚 Rename in progress...")
-	
+
 	// First, copy the file with the new name
 	res, err := s3b.bucket.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(s3b.bucketName),
 		Key:    aws.String(oldName),
 	})
-	
+
 	if err != nil {
 		log.Fatalf("Failed to find file %s: %s", oldName, err.Error())
 	}
 	defer res.Body.Close()
-	
+
 	// Extract file extension from the old name
 	ext := path.Ext(oldName)
 	var newKey string
-	
+
 	// If old name has an extension, use it for the new name
 	if ext != "" {
 		baseName := strings.TrimSuffix(newName, ext)
@@ -192,13 +195,13 @@ func (s3b *S3Bucket) RenameFile(oldName, newName string) {
 	} else {
 		newKey = newName
 	}
-	
+
 	// Read the entire body
 	bodyBytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.Fatalf("Failed to read file contents: %s", err.Error())
 	}
-	
+
 	// Copy object to the new key
 	_, err = s3b.bucket.PutObject(&s3.PutObjectInput{
 		Bucket:             aws.String(s3b.bucketName),
@@ -208,20 +211,20 @@ func (s3b *S3Bucket) RenameFile(oldName, newName string) {
 		ContentDisposition: aws.String("attachment"),
 		ContentType:        aws.String("application/octet-stream"),
 	})
-	
+
 	if err != nil {
 		log.Fatalf("Failed to rename file to %s: %s", newKey, err.Error())
 	}
-	
+
 	// Delete the old object
 	_, err = s3b.bucket.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(s3b.bucketName),
 		Key:    aws.String(oldName),
 	})
-	
+
 	if err != nil {
 		log.Fatalf("Failed to delete original file after rename: %s", err.Error())
 	}
-	
+
 	fmt.Printf("🥳 File renamed from %s to %s!!!\n", oldName, newKey)
 }

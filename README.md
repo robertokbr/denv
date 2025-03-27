@@ -40,8 +40,14 @@ denv --config
 # To upload a file with a specific nickname
 denv --up [filename] --name [nickname]
 
+# To upload a directory (will be zipped)
+denv -r --up [directory] --name [nickname]
+
 # Example: Upload .env file with the nickname "myproject"
 denv --up .env --name myproject
+
+# Example: Upload a directory with the nickname "myproject"
+denv -r --up ./myproject --name myproject
 ```
 
 ### Download files
@@ -54,6 +60,9 @@ denv --name [nickname] --out [output-filename]
 
 # Example: Download a file nicknamed "myproject" and save it as .env.production
 denv --name myproject --out .env.production
+
+# Example: Download a directory (will be automatically unzipped)
+denv --name myproject --out ./myproject
 ```
 
 ### List files
@@ -116,11 +125,17 @@ denv --help
 # Upload your environment file
 denv --up .env.development --name dev-env
 
+# Upload a project directory
+denv -r --up ./myproject --name myproject
+
 # List all your stored files
 denv --list
 
 # Download the file on another machine
 denv --name dev-env --out .env.development
+
+# Download the project directory (will be automatically unzipped)
+denv --name myproject --out ./myproject
 
 # Rename the file to something more descriptive
 denv --rename dev-env --name project-development-env
